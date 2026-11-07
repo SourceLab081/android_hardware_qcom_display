@@ -62,7 +62,11 @@
  */
 
 #ifndef QMAA
+#ifdef USE_LEGACY_BUFFER_ALIGNMENT
+#include <media/msm_media_info_legacy.h>
+#else
 #include <media/msm_media_info.h>
+#endif
 #endif
 
 #include <drm/drm_fourcc.h>
@@ -187,7 +191,8 @@ bool IsCompressedRGBFormat(int format) {
   return false;
 }
 
-bool IsCameraCustomFormat(int format) {
+bool IsCameraCustomFormat([[maybe_unused]] int format) {
+#ifndef NO_CAMERA_CUSTOM_FORMAT
   switch (format) {
     case HAL_PIXEL_FORMAT_NV21_ZSL:
       if (CameraInfo::GetInstance() &&
@@ -211,6 +216,7 @@ bool IsCameraCustomFormat(int format) {
     default:
       break;
   }
+#endif
 
   return false;
 }
@@ -1417,23 +1423,24 @@ int GetImplDefinedFormat(uint64_t usage, int format) {
   if (format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED ||
       format == HAL_PIXEL_FORMAT_YCbCr_420_888) {
     if ((usage & GRALLOC_USAGE_PRIVATE_ALLOC_UBWC || usage & GRALLOC_USAGE_PRIVATE_ALLOC_UBWC_PI)
-        && format != HAL_PIXEL_FORMAT_YCbCr_420_888) {
+        && format != HAL_PIXEL_FORMAT_YCbCr_420_888
+#ifdef NO_CAMERA_CUSTOM_FORMAT
+        && !((usage & BufferUsage::CAMERA_OUTPUT) && !(usage & GRALLOC_USAGE_PRIVATE_10BIT))
+#endif
+        ) {
       gr_format = HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS_UBWC;
+#ifdef USE_TP10_UBWC_FOR_10BIT
+      if (usage & GRALLOC_USAGE_PRIVATE_10BIT) {
+        gr_format = HAL_PIXEL_FORMAT_YCbCr_420_TP10_UBWC;
+      }
+#endif
     } else if (usage & BufferUsage::VIDEO_ENCODER) {
       if (usage & GRALLOC_USAGE_PRIVATE_VIDEO_NV21_ENCODER) {
         gr_format = HAL_PIXEL_FORMAT_NV21_ENCODEABLE;  // NV21
       } else if (usage & GRALLOC_USAGE_PRIVATE_HEIF) {
         gr_format = HAL_PIXEL_FORMAT_NV12_HEIF;
       } else if (format == HAL_PIXEL_FORMAT_YCbCr_420_888) {
-#ifdef USE_YCRCB_CAMERA_ENCODE
-        if (usage & BufferUsage::CAMERA_OUTPUT) {
-          gr_format = HAL_PIXEL_FORMAT_YCrCb_420_SP_VENUS;
-        } else {
-          gr_format = HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS;
-        }
-#else
         gr_format = HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS;
-#endif
       } else {
         gr_format = HAL_PIXEL_FORMAT_NV12_ENCODEABLE;  // NV12
       }
@@ -1452,7 +1459,13 @@ int GetImplDefinedFormat(uint64_t usage, int format) {
           gr_format = HAL_PIXEL_FORMAT_NV21_ZSL;  // NV21
         }
       } else {
+#ifdef USE_YCRCB_CAMERA_PREVIEW
+        gr_format = HAL_PIXEL_FORMAT_YCrCb_420_SP;  // NV21 preview
+#elif USE_YCRCB_CAMERA_PREVIEW_VENUS
+        gr_format = HAL_PIXEL_FORMAT_YCrCb_420_SP_VENUS;  // NV21 preview
+#else
         gr_format = HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS;  // NV12 preview
+#endif
       }
     } else if (usage & BufferUsage::COMPOSER_OVERLAY) {
       // XXX: If we still haven't set a format, default to RGBA8888
