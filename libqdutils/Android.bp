@@ -5,6 +5,7 @@ cc_library_shared {
     header_libs: [
         "libhardware_headers",
         "libutils_headers",
+        "display_headers",
     ],
     shared_libs: [
         "libbinder",
