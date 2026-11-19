@@ -32,11 +32,30 @@ cc_library_shared {
         integer_overflow: true,
     },
     cflags: [
-        "-Wno-missing-field-initializers",
         "-DLOG_TAG=\"qdgralloc\"",
-        "-Wno-sign-conversion",
         "-D__QTI_DISPLAY_GRALLOC__",
-    ],
+        "-Wno-sign-conversion",
+        "-Wno-unused-parameter",
+        "-Wno-unused-variable",
+    ] + select(soong_config_variable("qtidisplay", "target_no_camera_custom_format"), {
+        "true": ["-DNO_CAMERA_CUSTOM_FORMAT"],
+        default: [],
+    }) + select(soong_config_variable("qtidisplay", "target_no_raw10_custom_format"), {
+        "true": ["-DNO_RAW10_CUSTOM_FORMAT"],
+        default: [],
+    }) + select(soong_config_variable("qtidisplay", "target_uses_legacy_buffer_alignment"), {
+        "true": ["-DUSE_LEGACY_BUFFER_ALIGNMENT"],
+        default: [],
+    }) + select(soong_config_variable("qtidisplay", "target_uses_ycrcb_camera_preview"), {
+        "true": ["-DUSE_YCRCB_CAMERA_PREVIEW"],
+        default: [],
+    }) + select(soong_config_variable("qtidisplay", "target_uses_ycrcb_venus_camera_preview"), {
+        "true": ["-DUSE_YCRCB_CAMERA_PREVIEW_VENUS"],
+        default: [],
+    }) + select(soong_config_variable("qtidisplay", "target_uses_tp10_ubwc_for_10bit"), {
+        "true": ["-DUSE_TP10_UBWC_FOR_10BIT"],
+        default: [],
+    }),
     header_libs: [
         "display_headers",
         "qti_kernel_headers",
@@ -123,7 +142,14 @@ cc_library_shared {
         "-D__QTI_DISPLAY_GRALLOC__",
         "-Wno-sign-conversion",
         "-Wno-unused-parameter",
-    ],
+    ] + select(soong_config_variable("qtidisplay", "target_uses_legacy_buffer_alignment"), {
+        "true": ["-DUSE_LEGACY_BUFFER_ALIGNMENT"],
+        default: [],
+    }),
+    export_cflags: select(soong_config_variable("qtidisplay", "gralloc_handle_has_reserved_size"), {
+        "true": ["-DGRALLOC_HANDLE_HAS_RESERVED_SIZE"],
+        default: [],
+    }),
     srcs: [
         "gr_allocator.cpp",
         "gr_buf_mgr.cpp",
